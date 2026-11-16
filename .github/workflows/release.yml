@@ -1,0 +1,39 @@
+name: Release
+
+# Pushing a tag like v0.2.0 builds the Mac app and publishes it as a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+jobs:
+  mac-app:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - name: Build
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          xcodebuild -version
+          bun run build MARKETING_VERSION="${TAG#v}" CURRENT_PROJECT_VERSION="${{ github.run_number }}"
+      - name: Zip
+        run: |
+          cd build/DerivedData/Build/Products/Release
+          ditto -c -k --keepParent Tickover.app "$GITHUB_WORKSPACE/Tickover.zip"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" Tickover.zip --repo "${{ github.repository }}" --title "$TAG" --generate-notes \
+            --notes "The app isn't notarized by Apple. After moving it to Applications, allow it once in System Settings → Privacy & Security → Open Anyway, or run \`xattr -dr com.apple.quarantine /Applications/Tickover.app\`."

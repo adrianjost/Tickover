@@ -73,11 +73,15 @@ Other commands:
 
 ## Install
 
-There are no prebuilt downloads, so build the app yourself (see Prerequisites and Build), then:
+Download `Tickover.zip` from the [latest release](https://github.com/adrianjost/Tickover/releases/latest)
+and unzip it, or build the app yourself (see Prerequisites and Build). Then:
 
-1. Move `Tickover.app` from `build/DerivedData/Build/Products/Release/` to `/Applications`.
-2. Open it. On first launch it asks where your time entries are. The self-hosted server is preselected
-   (see "Self-hosted time tracking" below); to read from Clockify instead, choose Clockify.
+1. Move `Tickover.app` to `/Applications`.
+2. Open it. The download isn't notarized by Apple, so macOS blocks the first launch: choose
+   Open Anyway in System Settings → Privacy & Security, or run
+   `xattr -dr com.apple.quarantine /Applications/Tickover.app`. On first launch it asks where
+   your time entries are. The self-hosted server is preselected (see "Self-hosted time tracking"
+   below); to read from Clockify instead, choose Clockify.
 3. Create a Clockify API key: in Clockify, open your profile menu → Preferences → Advanced →
    Manage API keys → Generate new, and copy the key (it is only shown once).
 4. Paste the key into the API key field. It is stored in the Keychain.
@@ -85,7 +89,7 @@ There are no prebuilt downloads, so build the app yourself (see Prerequisites an
    at the top left), and the menu bar shows the total. Turn on Open at login in the settings if
    you like.
 
-To update, pull the latest changes, build again and replace the app in `/Applications`.
+To update, replace the app in `/Applications` with a newer release or build.
 
 ## Self-hosted time tracking
 
