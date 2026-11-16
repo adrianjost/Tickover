@@ -94,18 +94,20 @@ struct TrackingServer {
     _ = try await send("DELETE", "api/entries/\(id)")
   }
 
-  func workHours() async throws -> [Double] {
-    let response: WorkHours = try await request("GET", "api/work-hours")
-    return response.hours
+  func workSchedules() async throws -> [WorkSchedule] {
+    let response: WorkSchedules = try await request("GET", "api/work-hours")
+    return response.schedules
   }
 
-  func setWorkHours(_ hours: [Double]) async throws -> [Double] {
-    let response: WorkHours = try await request("PUT", "api/work-hours", body: ["hours": hours])
-    return response.hours
+  func setWorkSchedules(_ schedules: [WorkSchedule]) async throws -> [WorkSchedule] {
+    let body = schedules.map { ["from": $0.from ?? NSNull() as Any, "hours": $0.hours] }
+    let response: WorkSchedules = try await request(
+      "PUT", "api/work-hours", body: ["schedules": body])
+    return response.schedules
   }
 
-  private struct WorkHours: Decodable {
-    let hours: [Double]
+  private struct WorkSchedules: Decodable {
+    let schedules: [WorkSchedule]
   }
 
   /// Seconds worked per local calendar day, attributing each entry to the day it started.

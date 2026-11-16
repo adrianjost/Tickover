@@ -191,11 +191,15 @@ final class AppController {
     case "setTrayEnabled":
       setTrayEnabled(params["enabled"] as? Bool ?? true)
       return nil
-    case "getWorkHours":
-      return try json(["hours": await currentWorkHours()])
-    case "setWorkHours":
-      let hours = (params["hours"] as? [Any] ?? []).compactMap { ($0 as? NSNumber)?.doubleValue }
-      return try json(["hours": try await setWorkHours(hours)])
+    case "getWorkSchedules":
+      return try json(["schedules": await currentWorkSchedules()])
+    case "setWorkSchedules":
+      let schedules = (params["schedules"] as? [[String: Any]] ?? []).map {
+        WorkSchedule(
+          from: $0["from"] as? String,
+          hours: ($0["hours"] as? [Any] ?? []).compactMap { ($0 as? NSNumber)?.doubleValue })
+      }
+      return try json(["schedules": try await setWorkSchedules(schedules)])
     case "getStoredApiKey":
       return try json(["apiKey": Keychain.loadApiKey()])
     case "setStoredApiKey":
@@ -266,7 +270,7 @@ final class AppController {
       apiKey: apiKey, startDate: startDate, endDate: endDate)
     let data = try OvertimeReport.build(
       secondsPerDay: secondsPerDay, startDate: startDate, endDate: endDate,
-      workHours: preferences.workHours)
+      schedules: preferences.workSchedules)
     setOvertimeTitle(Self.formatTrayTitle(totalSeconds: data.totalOvertimeSeconds))
     return data
   }
@@ -275,12 +279,12 @@ final class AppController {
     async throws -> OvertimeData
   {
     let (from, to) = try Self.localRange(startDate, endDate)
-    async let hours = workHours(server: server)
+    async let schedules = workSchedules(server: server)
     let entries = try await server.entries(from: from, to: to)
     runningEntry = entries.first { $0.end == nil }
     let data = try OvertimeReport.build(
       secondsPerDay: TrackingServer.secondsPerDay(entries), startDate: startDate,
-      endDate: endDate, workHours: await hours)
+      endDate: endDate, schedules: await schedules)
     setOvertimeTitle(Self.formatTrayTitle(totalSeconds: data.totalOvertimeSeconds))
     return data
   }
@@ -311,31 +315,56 @@ final class AppController {
 
   // MARK: - Work hours
 
-  /// The server's hours when it can be reached, else the last ones read from it.
-  private func workHours(server: TrackingServer) async -> [Double] {
-    guard let hours = try? await server.workHours() else { return preferences.workHours }
-    if hours != preferences.workHours {
-      preferences.workHours = hours
+  /// The server's schedules when it can be reached, else the last ones read from it.
+  private func workSchedules(server: TrackingServer) async -> [WorkSchedule] {
+    guard let schedules = try? await server.workSchedules() else {
+      return preferences.workSchedules
+    }
+    if schedules != preferences.workSchedules {
+      preferences.workSchedules = schedules
       preferences.save()
     }
-    return hours
+    return schedules
   }
 
-  private func currentWorkHours() async -> [Double] {
-    if let server = activeServer { return await workHours(server: server) }
-    return preferences.workHours
+  private func currentWorkSchedules() async -> [WorkSchedule] {
+    if let server = activeServer { return await workSchedules(server: server) }
+    return preferences.workSchedules
   }
 
-  private func setWorkHours(_ hours: [Double]) async throws -> [Double] {
-    guard hours.count == 7, hours.allSatisfy({ (0...24).contains($0) }) else {
-      throw ClockifyError(message: "Enter between 0 and 24 hours for each day.")
+  private func setWorkSchedules(_ schedules: [WorkSchedule]) async throws -> [WorkSchedule] {
+    let saved: [WorkSchedule]
+    if let server = activeServer {
+      saved = try await server.setWorkSchedules(schedules)
+    } else {
+      saved = try Self.validated(schedules)
     }
-    let saved =
-      try await activeServer?.setWorkHours(hours) ?? hours.map { ($0 * 60).rounded() / 60 }
-    preferences.workHours = saved
+    preferences.workSchedules = saved
     preferences.save()
     Task { await refreshTray() }
     return saved
+  }
+
+  /// Sorted and rounded to minutes, checked like the server checks them.
+  private static func validated(_ schedules: [WorkSchedule]) throws -> [WorkSchedule] {
+    guard
+      schedules.allSatisfy({ $0.hours.count == 7 && $0.hours.allSatisfy { (0...24).contains($0) } })
+    else {
+      throw ClockifyError(message: "Enter between 0 and 24 hours for each day.")
+    }
+    guard schedules.allSatisfy({ $0.from.map { PlainDates.parse($0) != nil } ?? true }) else {
+      throw ClockifyError(message: "Pick a valid start date.")
+    }
+    let sorted = schedules.sorted { ($0.from ?? "") < ($1.from ?? "") }
+    guard sorted.first?.from == nil, !sorted.dropFirst().contains(where: { $0.from == nil }) else {
+      throw ClockifyError(message: "Expected exactly one schedule without a start date.")
+    }
+    guard Set(sorted.compactMap(\.from)).count == sorted.count - 1 else {
+      throw ClockifyError(message: "Two changes start on the same day.")
+    }
+    return sorted.map {
+      WorkSchedule(from: $0.from, hours: $0.hours.map { ($0 * 60).rounded() / 60 })
+    }
   }
 
   // MARK: - Time tracking

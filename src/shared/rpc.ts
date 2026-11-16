@@ -15,6 +15,16 @@ export type DataSource = "clockify" | "server";
 export type WorkHours = number[];
 export const DEFAULT_WORK_HOURS: WorkHours = [8, 8, 8, 8, 8, 0, 0];
 
+/**
+ * Working hours that apply from `from` (a local YYYY-MM-DD date) until the next schedule starts.
+ * Sorted by date; the first one has no start date and also covers everything before.
+ */
+export interface WorkSchedule {
+  from: string | null;
+  hours: WorkHours;
+}
+export const DEFAULT_WORK_SCHEDULES: WorkSchedule[] = [{ from: null, hours: DEFAULT_WORK_HOURS }];
+
 /** "system" follows the light or dark setting of the operating system. */
 export type Theme = "system" | "light" | "dark";
 
@@ -73,8 +83,11 @@ export type AppRequests = {
   setTheme: { params: { theme: Theme }; response: void };
   getEntriesSidebar: { params: {}; response: { enabled: boolean } };
   setEntriesSidebar: { params: { enabled: boolean }; response: void };
-  getWorkHours: { params: {}; response: { hours: WorkHours } };
-  setWorkHours: { params: { hours: WorkHours }; response: { hours: WorkHours } };
+  getWorkSchedules: { params: {}; response: { schedules: WorkSchedule[] } };
+  setWorkSchedules: {
+    params: { schedules: WorkSchedule[] };
+    response: { schedules: WorkSchedule[] };
+  };
   getStoredApiKey: { params: {}; response: { apiKey: string | null } };
   setStoredApiKey: { params: { apiKey: string }; response: void };
   clearStoredApiKey: { params: {}; response: void };
