@@ -15,6 +15,14 @@ struct TrackedEntry: Codable {
     guard let startDate else { return 0 }
     return max(0, (endDate ?? Date()).timeIntervalSince(startDate))
   }
+
+  // The web view tells a running timer by `end: null`, so the key must not be left out.
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(id, forKey: .id)
+    try container.encode(start, forKey: .start)
+    try container.encode(end, forKey: .end)
+  }
 }
 
 /// Client for the optional self-hosted time tracking server in `server/`.
