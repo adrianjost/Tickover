@@ -70,13 +70,29 @@ db.run("CREATE UNIQUE INDEX IF NOT EXISTS labels_user_name ON labels (user_id, n
 db.run(
   "CREATE UNIQUE INDEX IF NOT EXISTS labels_user_clockify ON labels (user_id, clockify_id) WHERE clockify_id IS NOT NULL",
 );
+// Hours expected per weekday, Monday first, as a JSON array; null means the default.
+if (
+  !db
+    .query<{ name: string }, []>("PRAGMA table_info(users)")
+    .all()
+    .some((c) => c.name === "work_hours")
+) {
+  db.run("ALTER TABLE users ADD COLUMN work_hours TEXT");
+}
 db.run(`CREATE TABLE IF NOT EXISTS entry_labels (
   entry_id TEXT NOT NULL REFERENCES entries (id) ON DELETE CASCADE,
   label_id TEXT NOT NULL REFERENCES labels (id) ON DELETE CASCADE,
   PRIMARY KEY (entry_id, label_id)
 )`);
 
-type User = { id: string; username: string; password_hash: string; created_at: string };
+type User = {
+  id: string;
+  username: string;
+  password_hash: string;
+  created_at: string;
+  work_hours: string | null;
+};
+const DEFAULT_WORK_HOURS = [8, 8, 8, 8, 8, 0, 0];
 type Entry = { id: string; start: string; end: string | null; labels: string[] };
 type Row = { id: string; start: string; end: string | null; user_id: string; updated_at: string };
 type Label = {
@@ -98,6 +114,7 @@ const users = {
   ),
   setPassword: db.query("UPDATE users SET password_hash = $password_hash WHERE id = $id"),
   setUsername: db.query("UPDATE users SET username = $username WHERE id = $id"),
+  setWorkHours: db.query("UPDATE users SET work_hours = $work_hours WHERE id = $id"),
   remove: db.query("DELETE FROM users WHERE id = $id"),
 };
 
@@ -304,6 +321,7 @@ function instant(value: unknown, field: string): string {
 type Input = Partial<
   Record<
     | "username"
+    | "hours"
     | "password"
     | "currentPassword"
     | "newPassword"
@@ -821,6 +839,22 @@ function timerApi(user: User) {
       users.setPassword.run({ id: user_id, password_hash });
       sessions.removeOthers.run({ user_id, token_hash: hashToken(bearerToken(request)) });
       return null;
+    },
+    "GET /api/work-hours": () => ({
+      hours: user.work_hours ? JSON.parse(user.work_hours) : DEFAULT_WORK_HOURS,
+    }),
+    "PUT /api/work-hours": async (request) => {
+      const { hours } = await body(request);
+      if (
+        !Array.isArray(hours) ||
+        hours.length !== 7 ||
+        !hours.every((h) => typeof h === "number" && h >= 0 && h <= 24)
+      ) {
+        throw new HttpError(400, "Expected hours for each day from Monday to Sunday, 0 to 24");
+      }
+      const rounded = hours.map((h: number) => Math.round(h * 60) / 60);
+      users.setWorkHours.run({ id: user_id, work_hours: JSON.stringify(rounded) });
+      return { hours: rounded };
     },
     "POST /api/logout": (request) => {
       sessions.remove.run({ token_hash: hashToken(bearerToken(request)) });

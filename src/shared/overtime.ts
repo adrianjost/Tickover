@@ -1,8 +1,6 @@
-import type { OvertimeData, TrackedEntry } from "./rpc.ts";
+import type { OvertimeData, TrackedEntry, WorkHours } from "./rpc.ts";
 
 // Mirrors macos/Tickover/Clockify/OvertimeReport.swift for the web UI.
-
-const WORKDAY_SECONDS = 8 * 3600;
 
 export function localIsoDate(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -29,13 +27,14 @@ export function secondsPerDay(entries: TrackedEntry[], now = Date.now()): Map<st
 }
 
 /**
- * Compares worked hours to expected 8-hour workdays (excluding weekends).
+ * Compares worked hours to the hours expected on each weekday.
  * Days without any time entry count neither as worked nor as expected.
  */
 export function buildOvertime(
   worked: Map<string, number>,
   startDate: string,
   endDate: string,
+  workHours: WorkHours,
 ): OvertimeData {
   const truncatedHours = (seconds: number) => Math.trunc(seconds / 60) / 60;
   const dailyData: OvertimeData["dailyData"] = [];
@@ -45,8 +44,7 @@ export function buildOvertime(
   for (let day = startDate; day <= endDate; day = localIsoDate(localMidnight(day, 1))) {
     const seconds = worked.get(day);
     if (seconds !== undefined) {
-      const weekday = localMidnight(day).getDay();
-      const expectedHours = weekday === 0 || weekday === 6 ? 0 : WORKDAY_SECONDS / 3600;
+      const expectedHours = workHours[(localMidnight(day).getDay() + 6) % 7] ?? 0;
       expected += expectedHours * 3600;
       actual += seconds;
       dailyData.push({

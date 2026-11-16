@@ -1,9 +1,10 @@
-import type { TrackedEntry } from "../shared/rpc.ts";
+import { DEFAULT_WORK_HOURS, type TrackedEntry, type WorkHours } from "../shared/rpc.ts";
 import { buildOvertime, localMidnight, secondsPerDay } from "../shared/overtime.ts";
 import { setTransport } from "../mainview/bridge.ts";
 import { DASHBOARD_CACHE_KEY, initializeDashboard } from "../mainview/dashboard.ts";
 import { initializeTracking } from "../mainview/tracking.ts";
 import { initializeThemePicker } from "../mainview/theme-picker.ts";
+import { initializeWorkHours } from "../mainview/work-hours.ts";
 import { createOfflineStore, ServerError } from "./offline.ts";
 
 // The mobile web UI served by the time tracking server. It reuses the app's views and talks to
@@ -11,6 +12,7 @@ import { createOfflineStore, ServerError } from "./offline.ts";
 
 const TOKEN_KEY = "server_session";
 const USERNAME_KEY = "server_username";
+const WORK_HOURS_KEY = "work_hours";
 
 const loginView = document.querySelector<HTMLElement>("#login-view")!;
 const mainView = document.querySelector<HTMLElement>("#main-view")!;
@@ -186,10 +188,41 @@ async function handle(method: string, params: Params): Promise<unknown> {
     case "analyzeOvertime": {
       const { startDate, endDate } = params as { startDate: string; endDate: string };
       const entries = await store.list(...isoRange(startDate, endDate));
-      return buildOvertime(secondsPerDay(entries), startDate, endDate);
+      return buildOvertime(secondsPerDay(entries), startDate, endDate, await workHours());
+    }
+    case "getWorkHours":
+      return { hours: await workHours() };
+    case "setWorkHours": {
+      const saved = await api<{ hours: WorkHours }>("PUT", "/api/work-hours", {
+        hours: params["hours"],
+      });
+      cacheWorkHours(saved.hours);
+      return saved;
     }
     default:
       throw new Error(`${method} is not available in the web UI`);
+  }
+}
+
+function cacheWorkHours(hours: WorkHours) {
+  try {
+    localStorage.setItem(WORK_HOURS_KEY, JSON.stringify(hours));
+  } catch {}
+}
+
+/** From the server when it can be reached, else the last known hours. */
+async function workHours(): Promise<WorkHours> {
+  try {
+    const { hours } = await api<{ hours: WorkHours }>("GET", "/api/work-hours");
+    cacheWorkHours(hours);
+    return hours;
+  } catch (error) {
+    if (error instanceof Unauthorized) throw error;
+    try {
+      const cached = localStorage.getItem(WORK_HOURS_KEY);
+      if (cached) return JSON.parse(cached) as WorkHours;
+    } catch {}
+    return DEFAULT_WORK_HOURS;
   }
 }
 
@@ -264,6 +297,7 @@ function signOut(message = "") {
   try {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(DASHBOARD_CACHE_KEY);
+    localStorage.removeItem(WORK_HOURS_KEY);
   } catch {}
   store.clear();
   mainView.hidden = settingsView.hidden = true;
@@ -612,6 +646,7 @@ function showMain() {
 
   initializeDashboard(() => {});
   initializeTracking({ alwaysShowEntries: true, assumeEnabled: true });
+  initializeWorkHours(document.querySelector<HTMLElement>("#work-hours")!);
 }
 
 if (token()) showMain();

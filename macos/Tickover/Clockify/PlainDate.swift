@@ -57,9 +57,9 @@ enum PlainDates {
     return format(shifted)
   }
 
-  static func isWeekend(_ value: PlainDate) -> Bool {
-    guard let date = parse(value) else { return false }
-    let weekday = utc.component(.weekday, from: date)
-    return weekday == 1 || weekday == 7
+  /// 0 for Monday through 6 for Sunday.
+  static func weekdayFromMonday(_ value: PlainDate) -> Int {
+    guard let date = parse(value) else { return 0 }
+    return (utc.component(.weekday, from: date) + 5) % 7
   }
 }

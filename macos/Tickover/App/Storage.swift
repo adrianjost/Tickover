@@ -21,6 +21,8 @@ struct Preferences: Codable {
   var dataSource: String?
   var serverURL: String?
   var serverUsername: String?
+  /// Hours expected on each weekday, Monday first. With a server, the copy last read from it.
+  var workHours: [Double] = OvertimeReport.defaultWorkHours
 
   init() {}
 
@@ -35,6 +37,9 @@ struct Preferences: Codable {
     dataSource = try container.decodeIfPresent(String.self, forKey: .dataSource)
     serverURL = try container.decodeIfPresent(String.self, forKey: .serverURL)
     serverUsername = try container.decodeIfPresent(String.self, forKey: .serverUsername)
+    workHours =
+      try container.decodeIfPresent([Double].self, forKey: .workHours)
+      ?? OvertimeReport.defaultWorkHours
   }
 
   static func load() -> Preferences {

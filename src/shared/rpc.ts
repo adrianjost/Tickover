@@ -11,6 +11,10 @@ export interface OvertimeData {
 
 export type DataSource = "clockify" | "server";
 
+/** Hours expected on each weekday, Monday first. */
+export type WorkHours = number[];
+export const DEFAULT_WORK_HOURS: WorkHours = [8, 8, 8, 8, 8, 0, 0];
+
 /** "system" follows the light or dark setting of the operating system. */
 export type Theme = "system" | "light" | "dark";
 
@@ -69,6 +73,8 @@ export type AppRequests = {
   setTheme: { params: { theme: Theme }; response: void };
   getEntriesSidebar: { params: {}; response: { enabled: boolean } };
   setEntriesSidebar: { params: { enabled: boolean }; response: void };
+  getWorkHours: { params: {}; response: { hours: WorkHours } };
+  setWorkHours: { params: { hours: WorkHours }; response: { hours: WorkHours } };
   getStoredApiKey: { params: {}; response: { apiKey: string | null } };
   setStoredApiKey: { params: { apiKey: string }; response: void };
   clearStoredApiKey: { params: {}; response: void };
