@@ -13,7 +13,7 @@ phone. Track time yourself, or read your entries from Clockify.
 
 - Enter your Clockify API key in-app (stored in the macOS Keychain)
 - Analyze overtime for a custom date range
-- Set the hours you work on each weekday (8 hours Monday to Friday unless you change it)
+- Set the hours you work on each weekday (8 hours Monday to Friday unless you change it), and add a change with a start date when your hours change, so earlier days keep their old target
 - Zoomable daily/weekly chart with cumulative overtime
 - Menu bar item with periodic overtime updates
 - Track time yourself (start/stop, add and edit entries) and keep the entries on your own server,
@@ -220,7 +220,7 @@ Once connected:
   use "Add entry" for time you forgot to track. An end time earlier than the start time counts as the
   next day.
 - The overtime is calculated from these entries, counting each entry on the day it started.
-- Your working hours per weekday are stored on the server too, so the app and the web UI agree.
+- Your working hours, including changes over time, are stored on the server too, so the app and the web UI agree.
 
 ### API
 
@@ -229,25 +229,25 @@ labels are created when first used. `POST /api/login` with `{username, password}
 need it as `Authorization: Bearer <token>`. Request bodies must be JSON with
 `Content-Type: application/json`. Times are ISO 8601.
 
-| Request                                               | Purpose                                      |
-| ----------------------------------------------------- | -------------------------------------------- |
-| `POST /api/login` `{username, password}`              | Sign in; returns `{token, username}`         |
-| `POST /api/logout`                                    | End this session                             |
-| `POST /api/username` `{username}`                     | Change your username                         |
-| `POST /api/password` `{currentPassword, newPassword}` | Change the password; signs out other devices |
-| `GET /api/me`                                         | The signed-in user, and if they have entries |
-| `GET /api/work-hours`                                 | Hours per weekday, Monday first (`{hours}`)  |
-| `PUT /api/work-hours` `{hours}`                       | Change them; 7 numbers from 0 to 24          |
-| `GET /api/labels`                                     | Your labels (`{id, name, color}`)            |
-| `GET /api/entries?from=…&to=…`                        | Entries overlapping the range                |
-| `POST /api/entries` `{start, end, labels?}`           | Add an entry                                 |
-| `PUT /api/entries/:id` `{start, end, labels?}`        | Add or replace an entry under your own UUID  |
-| `PATCH /api/entries/:id` `{start?, end?, labels?}`    | Change an entry                              |
-| `DELETE /api/entries/:id`                             | Delete an entry                              |
-| `GET /api/timer`                                      | The running entry, if any                    |
-| `POST /api/timer/start` / `POST /api/timer/stop`      | Start or stop the timer                      |
-| `POST /api/import/clockify` `{apiKey}`                | Copy entries from Clockify                   |
-| `POST /api/import/backup` `{entries}`                 | Restore a JSON export                        |
+| Request                                               | Purpose                                                                                                                             |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/login` `{username, password}`              | Sign in; returns `{token, username}`                                                                                                |
+| `POST /api/logout`                                    | End this session                                                                                                                    |
+| `POST /api/username` `{username}`                     | Change your username                                                                                                                |
+| `POST /api/password` `{currentPassword, newPassword}` | Change the password; signs out other devices                                                                                        |
+| `GET /api/me`                                         | The signed-in user, and if they have entries                                                                                        |
+| `GET /api/work-hours`                                 | Working-hour schedules (`{schedules}`), each `{from, hours}`: a start date (null for the first) and hours per weekday, Monday first |
+| `PUT /api/work-hours` `{schedules}`                   | Replace them; one without a start date, 7 numbers from 0 to 24 each                                                                 |
+| `GET /api/labels`                                     | Your labels (`{id, name, color}`)                                                                                                   |
+| `GET /api/entries?from=…&to=…`                        | Entries overlapping the range                                                                                                       |
+| `POST /api/entries` `{start, end, labels?}`           | Add an entry                                                                                                                        |
+| `PUT /api/entries/:id` `{start, end, labels?}`        | Add or replace an entry under your own UUID                                                                                         |
+| `PATCH /api/entries/:id` `{start?, end?, labels?}`    | Change an entry                                                                                                                     |
+| `DELETE /api/entries/:id`                             | Delete an entry                                                                                                                     |
+| `GET /api/timer`                                      | The running entry, if any                                                                                                           |
+| `POST /api/timer/start` / `POST /api/timer/stop`      | Start or stop the timer                                                                                                             |
+| `POST /api/import/clockify` `{apiKey}`                | Copy entries from Clockify                                                                                                          |
+| `POST /api/import/backup` `{entries}`                 | Restore a JSON export                                                                                                               |
 
 ## Signing and distribution
 

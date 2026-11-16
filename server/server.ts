@@ -70,7 +70,7 @@ db.run("CREATE UNIQUE INDEX IF NOT EXISTS labels_user_name ON labels (user_id, n
 db.run(
   "CREATE UNIQUE INDEX IF NOT EXISTS labels_user_clockify ON labels (user_id, clockify_id) WHERE clockify_id IS NOT NULL",
 );
-// Hours expected per weekday, Monday first, as a JSON array; null means the default.
+// Working-hour schedules as JSON, [{from, hours}] sorted by date; null means the default.
 if (
   !db
     .query<{ name: string }, []>("PRAGMA table_info(users)")
@@ -92,7 +92,43 @@ type User = {
   created_at: string;
   work_hours: string | null;
 };
-const DEFAULT_WORK_HOURS = [8, 8, 8, 8, 8, 0, 0];
+type WorkSchedule = { from: string | null; hours: number[] };
+const DEFAULT_WORK_SCHEDULES: WorkSchedule[] = [{ from: null, hours: [8, 8, 8, 8, 8, 0, 0] }];
+const MAX_WORK_SCHEDULES = 100;
+
+function parseWorkSchedules(value: unknown): WorkSchedule[] {
+  const invalid = (message: string) => new HttpError(400, message);
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_WORK_SCHEDULES) {
+    throw invalid(`Expected 1 to ${MAX_WORK_SCHEDULES} working-hour schedules`);
+  }
+  const schedules = value.map((s): WorkSchedule => {
+    const { from, hours } = (s ?? {}) as Record<string, unknown>;
+    if (
+      from !== null &&
+      (typeof from !== "string" ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(from) ||
+        Number.isNaN(Date.parse(`${from}T00:00:00Z`)))
+    ) {
+      throw invalid("Expected each schedule to start on a YYYY-MM-DD date");
+    }
+    if (
+      !Array.isArray(hours) ||
+      hours.length !== 7 ||
+      !hours.every((h) => typeof h === "number" && h >= 0 && h <= 24)
+    ) {
+      throw invalid("Expected hours for each day from Monday to Sunday, 0 to 24");
+    }
+    return { from, hours: hours.map((h: number) => Math.round(h * 60) / 60) };
+  });
+  schedules.sort((a, b) => (a.from ?? "").localeCompare(b.from ?? ""));
+  if (schedules[0]!.from !== null || schedules.slice(1).some((s) => s.from === null)) {
+    throw invalid("Expected exactly one schedule without a start date");
+  }
+  if (schedules.some((s, i) => i > 0 && s.from === schedules[i - 1]!.from)) {
+    throw invalid("Two schedules start on the same day");
+  }
+  return schedules;
+}
 type Entry = { id: string; start: string; end: string | null; labels: string[] };
 type Row = { id: string; start: string; end: string | null; user_id: string; updated_at: string };
 type Label = {
@@ -321,7 +357,7 @@ function instant(value: unknown, field: string): string {
 type Input = Partial<
   Record<
     | "username"
-    | "hours"
+    | "schedules"
     | "password"
     | "currentPassword"
     | "newPassword"
@@ -841,20 +877,12 @@ function timerApi(user: User) {
       return null;
     },
     "GET /api/work-hours": () => ({
-      hours: user.work_hours ? JSON.parse(user.work_hours) : DEFAULT_WORK_HOURS,
+      schedules: user.work_hours ? JSON.parse(user.work_hours) : DEFAULT_WORK_SCHEDULES,
     }),
     "PUT /api/work-hours": async (request) => {
-      const { hours } = await body(request);
-      if (
-        !Array.isArray(hours) ||
-        hours.length !== 7 ||
-        !hours.every((h) => typeof h === "number" && h >= 0 && h <= 24)
-      ) {
-        throw new HttpError(400, "Expected hours for each day from Monday to Sunday, 0 to 24");
-      }
-      const rounded = hours.map((h: number) => Math.round(h * 60) / 60);
-      users.setWorkHours.run({ id: user_id, work_hours: JSON.stringify(rounded) });
-      return { hours: rounded };
+      const schedules = parseWorkSchedules((await body(request)).schedules);
+      users.setWorkHours.run({ id: user_id, work_hours: JSON.stringify(schedules) });
+      return { schedules };
     },
     "POST /api/logout": (request) => {
       sessions.remove.run({ token_hash: hashToken(bearerToken(request)) });

@@ -1733,6 +1733,30 @@ button.icon-button {
   display: none;
 }
 
+.work-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.work-hours-period input[type="date"] {
+  margin-left: auto;
+  padding: 3px 6px;
+  border: 0.5px solid var(--control-border);
+  border-radius: 6px;
+  background: var(--control-bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.work-hours-period {
+  gap: 8px;
+}
+
+.work-hours-add {
+  align-self: flex-start;
+}
+
 .work-hours-days {
   gap: 6px;
 }

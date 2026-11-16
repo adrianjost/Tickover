@@ -1,4 +1,4 @@
-import { DEFAULT_WORK_HOURS, type TrackedEntry, type WorkHours } from "../shared/rpc.ts";
+import { DEFAULT_WORK_SCHEDULES, type TrackedEntry, type WorkSchedule } from "../shared/rpc.ts";
 import { buildOvertime, localMidnight, secondsPerDay } from "../shared/overtime.ts";
 import { setTransport } from "../mainview/bridge.ts";
 import { DASHBOARD_CACHE_KEY, initializeDashboard } from "../mainview/dashboard.ts";
@@ -12,7 +12,7 @@ import { createOfflineStore, ServerError } from "./offline.ts";
 
 const TOKEN_KEY = "server_session";
 const USERNAME_KEY = "server_username";
-const WORK_HOURS_KEY = "work_hours";
+const WORK_SCHEDULES_KEY = "work_schedules";
 
 const loginView = document.querySelector<HTMLElement>("#login-view")!;
 const mainView = document.querySelector<HTMLElement>("#main-view")!;
@@ -188,15 +188,15 @@ async function handle(method: string, params: Params): Promise<unknown> {
     case "analyzeOvertime": {
       const { startDate, endDate } = params as { startDate: string; endDate: string };
       const entries = await store.list(...isoRange(startDate, endDate));
-      return buildOvertime(secondsPerDay(entries), startDate, endDate, await workHours());
+      return buildOvertime(secondsPerDay(entries), startDate, endDate, await workSchedules());
     }
-    case "getWorkHours":
-      return { hours: await workHours() };
-    case "setWorkHours": {
-      const saved = await api<{ hours: WorkHours }>("PUT", "/api/work-hours", {
-        hours: params["hours"],
+    case "getWorkSchedules":
+      return { schedules: await workSchedules() };
+    case "setWorkSchedules": {
+      const saved = await api<{ schedules: WorkSchedule[] }>("PUT", "/api/work-hours", {
+        schedules: params["schedules"],
       });
-      cacheWorkHours(saved.hours);
+      cacheWorkSchedules(saved.schedules);
       return saved;
     }
     default:
@@ -204,25 +204,25 @@ async function handle(method: string, params: Params): Promise<unknown> {
   }
 }
 
-function cacheWorkHours(hours: WorkHours) {
+function cacheWorkSchedules(schedules: WorkSchedule[]) {
   try {
-    localStorage.setItem(WORK_HOURS_KEY, JSON.stringify(hours));
+    localStorage.setItem(WORK_SCHEDULES_KEY, JSON.stringify(schedules));
   } catch {}
 }
 
-/** From the server when it can be reached, else the last known hours. */
-async function workHours(): Promise<WorkHours> {
+/** From the server when it can be reached, else the last known schedules. */
+async function workSchedules(): Promise<WorkSchedule[]> {
   try {
-    const { hours } = await api<{ hours: WorkHours }>("GET", "/api/work-hours");
-    cacheWorkHours(hours);
-    return hours;
+    const { schedules } = await api<{ schedules: WorkSchedule[] }>("GET", "/api/work-hours");
+    cacheWorkSchedules(schedules);
+    return schedules;
   } catch (error) {
     if (error instanceof Unauthorized) throw error;
     try {
-      const cached = localStorage.getItem(WORK_HOURS_KEY);
-      if (cached) return JSON.parse(cached) as WorkHours;
+      const cached = localStorage.getItem(WORK_SCHEDULES_KEY);
+      if (cached) return JSON.parse(cached) as WorkSchedule[];
     } catch {}
-    return DEFAULT_WORK_HOURS;
+    return DEFAULT_WORK_SCHEDULES;
   }
 }
 
@@ -297,7 +297,7 @@ function signOut(message = "") {
   try {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(DASHBOARD_CACHE_KEY);
-    localStorage.removeItem(WORK_HOURS_KEY);
+    localStorage.removeItem(WORK_SCHEDULES_KEY);
   } catch {}
   store.clear();
   mainView.hidden = settingsView.hidden = true;
