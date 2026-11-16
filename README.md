@@ -13,6 +13,7 @@ phone. Track time yourself, or read your entries from Clockify.
 
 - Enter your Clockify API key in-app (stored in the macOS Keychain)
 - Analyze overtime for a custom date range
+- Set the hours you work on each weekday (8 hours Monday to Friday unless you change it)
 - Zoomable daily/weekly chart with cumulative overtime
 - Menu bar item with periodic overtime updates
 - Track time yourself (start/stop, add and edit entries) and keep the entries on your own server,
@@ -219,6 +220,7 @@ Once connected:
   use "Add entry" for time you forgot to track. An end time earlier than the start time counts as the
   next day.
 - The overtime is calculated from these entries, counting each entry on the day it started.
+- Your working hours per weekday are stored on the server too, so the app and the web UI agree.
 
 ### API
 
@@ -234,6 +236,8 @@ need it as `Authorization: Bearer <token>`. Request bodies must be JSON with
 | `POST /api/username` `{username}`                     | Change your username                         |
 | `POST /api/password` `{currentPassword, newPassword}` | Change the password; signs out other devices |
 | `GET /api/me`                                         | The signed-in user, and if they have entries |
+| `GET /api/work-hours`                                 | Hours per weekday, Monday first (`{hours}`)  |
+| `PUT /api/work-hours` `{hours}`                       | Change them; 7 numbers from 0 to 24          |
 | `GET /api/labels`                                     | Your labels (`{id, name, color}`)            |
 | `GET /api/entries?from=…&to=…`                        | Entries overlapping the range                |
 | `POST /api/entries` `{start, end, labels?}`           | Add an entry                                 |

@@ -94,6 +94,20 @@ struct TrackingServer {
     _ = try await send("DELETE", "api/entries/\(id)")
   }
 
+  func workHours() async throws -> [Double] {
+    let response: WorkHours = try await request("GET", "api/work-hours")
+    return response.hours
+  }
+
+  func setWorkHours(_ hours: [Double]) async throws -> [Double] {
+    let response: WorkHours = try await request("PUT", "api/work-hours", body: ["hours": hours])
+    return response.hours
+  }
+
+  private struct WorkHours: Decodable {
+    let hours: [Double]
+  }
+
   /// Seconds worked per local calendar day, attributing each entry to the day it started.
   static func secondsPerDay(_ entries: [TrackedEntry]) -> [PlainDate: Double] {
     var result: [PlainDate: Double] = [:]
@@ -105,14 +119,14 @@ struct TrackingServer {
   }
 
   private func request<Response: Decodable>(
-    _ method: String, _ path: String, query: [URLQueryItem] = [], body: [String: String?]? = nil
+    _ method: String, _ path: String, query: [URLQueryItem] = [], body: [String: Any?]? = nil
   ) async throws -> Response {
     try JSONDecoder().decode(
       Response.self, from: try await send(method, path, query: query, body: body))
   }
 
   private func send(
-    _ method: String, _ path: String, query: [URLQueryItem] = [], body: [String: String?]? = nil
+    _ method: String, _ path: String, query: [URLQueryItem] = [], body: [String: Any?]? = nil
   ) async throws -> Data {
     var components = URLComponents(
       url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!

@@ -23,7 +23,7 @@ function updateOvertimeDisplay(data: OvertimeData, overtimeValue: HTMLDivElement
   const mood = document.querySelector<HTMLDivElement>("#overtime-mood");
   if (mood && mood.dataset["minutes"] !== String(totalMinutes)) {
     mood.dataset["minutes"] = String(totalMinutes);
-    const { emoji, text } = describeBalance(totalMinutes);
+    const { emoji, text } = describeBalance(totalMinutes, workdayMinutes(data));
     mood.innerHTML = "";
     const emojiSpan = document.createElement("span");
     emojiSpan.className = "emoji";
@@ -97,10 +97,18 @@ function countUp(element: HTMLElement, totalMinutes: number, finalText: string) 
   requestAnimationFrame(step);
 }
 
-const WORKDAY_MINUTES = 8 * 60;
+/** An average workday in the range, to say the balance in days. */
+function workdayMinutes(data: OvertimeData): number {
+  const workdays = data.dailyData.filter((day) => day.expectedHours > 0);
+  if (workdays.length === 0) return 8 * 60;
+  return (workdays.reduce((sum, day) => sum + day.expectedHours, 0) / workdays.length) * 60;
+}
 
-function describeBalance(totalMinutes: number): { emoji: string; text: string } {
-  const days = totalMinutes / WORKDAY_MINUTES;
+function describeBalance(
+  totalMinutes: number,
+  workdayMinutes: number,
+): { emoji: string; text: string } {
+  const days = totalMinutes / workdayMinutes;
   if (totalMinutes === 0) return { emoji: "🎯", text: "Right on target." };
   if (totalMinutes > 0) {
     if (days >= 2) return { emoji: "🏝️", text: `About ${Math.floor(days)} days off banked.` };
@@ -121,14 +129,9 @@ export function formatIsoDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function isWeekend(isoDate: string): boolean {
-  const day = new Date(isoDate + "T00:00:00").getDay();
-  return day === 0 || day === 6;
-}
-
-// Only weekdays with tracked time count towards the target, like in the overtime calculation.
+// Only days with tracked time count towards the target, like in the overtime calculation.
 export function dayTarget(day: OvertimeData["dailyData"][number]): number {
-  return day.actualHours > 0 && !isWeekend(day.date) ? 8 : 0;
+  return day.actualHours > 0 ? day.expectedHours : 0;
 }
 
 export function formatHoursToHoursAndMinutes(hours: number): string {

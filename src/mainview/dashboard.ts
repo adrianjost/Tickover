@@ -4,7 +4,6 @@ import { initRangePicker } from "./range-picker.ts";
 import {
   formatHoursToHoursAndMinutes,
   formatIsoDate,
-  isWeekend,
   dayTarget,
   renderOvertimeSummary,
 } from "./overtime-summary.ts";
@@ -650,7 +649,7 @@ function dailyBars(
       hours: day.actualHours,
       cumulative: cumulative[i],
       label,
-      detail: { target: dayTarget(day), isWeekend: isWeekend(day.date) },
+      detail: { target: dayTarget(day), isDay: true },
     };
   });
 }
@@ -1514,7 +1513,7 @@ function fillMissingDays(dailyData: OvertimeData["dailyData"]): OvertimeData["da
     result.push({
       date: isoDate,
       actualHours: 0,
-      expectedHours: cursor.getDay() === 0 || cursor.getDay() === 6 ? 0 : 8,
+      expectedHours: 0,
       cumulativeOvertimeHours: lastCumulativeOvertime,
     });
   }
@@ -1522,7 +1521,7 @@ function fillMissingDays(dailyData: OvertimeData["dailyData"]): OvertimeData["da
   return result;
 }
 
-type BarDetail = { target: number; isWeekend?: boolean; daysWorked?: number };
+type BarDetail = { target: number; isDay?: boolean; daysWorked?: number };
 
 let tooltipElement: HTMLDivElement | null = null;
 
@@ -1573,8 +1572,8 @@ function showChartTooltip({
     const meta: string[] = [];
     if (detail.target > 0) {
       meta.push(`Target ${formatHoursToHoursAndMinutes(detail.target)}`);
-    } else if (detail.isWeekend) {
-      meta.push("Weekend, no target");
+    } else if (detail.isDay) {
+      meta.push("No target this day");
     }
     if (detail.daysWorked !== undefined) {
       meta.push(`${detail.daysWorked} ${detail.daysWorked === 1 ? "day" : "days"} worked`);

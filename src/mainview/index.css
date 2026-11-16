@@ -1732,3 +1732,67 @@ button.icon-button {
 .entry-actions [hidden] {
   display: none;
 }
+
+.work-hours-days {
+  gap: 6px;
+}
+
+.work-hours-day {
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.work-hours-day input {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 2px;
+  border: 0.5px solid var(--control-border);
+  border-radius: 6px;
+  background: var(--control-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.work-hours-total {
+  font-variant-numeric: tabular-nums;
+}
+
+.work-hours-total.is-error {
+  color: var(--negative);
+}
+
+/* Seven inputs in a row are too narrow for values like 7.5 in a narrow window, so each day gets its own row. */
+@media (max-width: 480px) {
+  .work-hours-days {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+  }
+
+  .work-hours-days .work-hours-day {
+    flex-direction: row;
+    justify-content: space-between;
+    min-height: 40px;
+    padding: 4px 12px;
+    font-size: inherit;
+    color: inherit;
+  }
+
+  .work-hours-day + .work-hours-day {
+    border-top: 0.5px solid var(--separator);
+  }
+
+  .work-hours-days .work-hours-day input {
+    width: 72px;
+    padding: 6px 8px;
+    text-align: right;
+  }
+}

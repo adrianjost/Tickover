@@ -16,13 +16,14 @@ struct OvertimeData: Encodable {
 }
 
 enum OvertimeReport {
-  private static let workdaySeconds: Double = 8 * 3600
+  static let defaultWorkHours: [Double] = [8, 8, 8, 8, 8, 0, 0]
 
-  /// Compares worked hours to expected 8-hour workdays (excluding weekends).
+  /// Compares worked hours to the hours expected on each weekday (`workHours`, Monday first).
   /// Days without any time entry count neither as worked nor as expected.
-  static func build(secondsPerDay: [PlainDate: Double], startDate: PlainDate, endDate: PlainDate)
-    throws -> OvertimeData
-  {
+  static func build(
+    secondsPerDay: [PlainDate: Double], startDate: PlainDate, endDate: PlainDate,
+    workHours: [Double]
+  ) throws -> OvertimeData {
     guard PlainDates.parse(startDate) != nil, PlainDates.parse(endDate) != nil else {
       throw ClockifyError(message: "Invalid date format, expected YYYY-MM-DD")
     }
@@ -34,11 +35,9 @@ enum OvertimeReport {
     var day = startDate
     while day <= endDate {
       if let worked = secondsPerDay[day] {
-        var expectedHours: Double = 0
-        if !PlainDates.isWeekend(day) {
-          expected += workdaySeconds
-          expectedHours = workdaySeconds / 3600
-        }
+        let weekday = PlainDates.weekdayFromMonday(day)
+        let expectedHours = workHours.indices.contains(weekday) ? workHours[weekday] : 0
+        expected += expectedHours * 3600
         actual += worked
         dailyData.append(
           .init(

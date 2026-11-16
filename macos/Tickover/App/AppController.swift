@@ -191,6 +191,11 @@ final class AppController {
     case "setTrayEnabled":
       setTrayEnabled(params["enabled"] as? Bool ?? true)
       return nil
+    case "getWorkHours":
+      return try json(["hours": await currentWorkHours()])
+    case "setWorkHours":
+      let hours = (params["hours"] as? [Any] ?? []).compactMap { ($0 as? NSNumber)?.doubleValue }
+      return try json(["hours": try await setWorkHours(hours)])
     case "getStoredApiKey":
       return try json(["apiKey": Keychain.loadApiKey()])
     case "setStoredApiKey":
@@ -260,7 +265,8 @@ final class AppController {
     let secondsPerDay = try await store.secondsPerDay(
       apiKey: apiKey, startDate: startDate, endDate: endDate)
     let data = try OvertimeReport.build(
-      secondsPerDay: secondsPerDay, startDate: startDate, endDate: endDate)
+      secondsPerDay: secondsPerDay, startDate: startDate, endDate: endDate,
+      workHours: preferences.workHours)
     setOvertimeTitle(Self.formatTrayTitle(totalSeconds: data.totalOvertimeSeconds))
     return data
   }
@@ -269,11 +275,12 @@ final class AppController {
     async throws -> OvertimeData
   {
     let (from, to) = try Self.localRange(startDate, endDate)
+    async let hours = workHours(server: server)
     let entries = try await server.entries(from: from, to: to)
     runningEntry = entries.first { $0.end == nil }
     let data = try OvertimeReport.build(
       secondsPerDay: TrackingServer.secondsPerDay(entries), startDate: startDate,
-      endDate: endDate)
+      endDate: endDate, workHours: await hours)
     setOvertimeTitle(Self.formatTrayTitle(totalSeconds: data.totalOvertimeSeconds))
     return data
   }
@@ -300,6 +307,35 @@ final class AppController {
     guard activeServer != nil || activeApiKey != nil else { return }
     await refreshTray()
     startTrayRefresh()
+  }
+
+  // MARK: - Work hours
+
+  /// The server's hours when it can be reached, else the last ones read from it.
+  private func workHours(server: TrackingServer) async -> [Double] {
+    guard let hours = try? await server.workHours() else { return preferences.workHours }
+    if hours != preferences.workHours {
+      preferences.workHours = hours
+      preferences.save()
+    }
+    return hours
+  }
+
+  private func currentWorkHours() async -> [Double] {
+    if let server = activeServer { return await workHours(server: server) }
+    return preferences.workHours
+  }
+
+  private func setWorkHours(_ hours: [Double]) async throws -> [Double] {
+    guard hours.count == 7, hours.allSatisfy({ (0...24).contains($0) }) else {
+      throw ClockifyError(message: "Enter between 0 and 24 hours for each day.")
+    }
+    let saved =
+      try await activeServer?.setWorkHours(hours) ?? hours.map { ($0 * 60).rounded() / 60 }
+    preferences.workHours = saved
+    preferences.save()
+    Task { await refreshTray() }
+    return saved
   }
 
   // MARK: - Time tracking
