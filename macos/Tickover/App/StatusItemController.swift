@@ -1,7 +1,7 @@
 import AppKit
 
-/// Menu bar item showing the overtime. Left click opens the window, right click shows a menu.
-final class StatusItemController: NSObject {
+/// Menu bar item showing the overtime. Any click shows its menu, like other menu bar apps.
+final class StatusItemController: NSObject, NSMenuDelegate {
   private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
   private let menu = NSMenu()
   private let extraMenuItems: () -> [NSMenuItem]
@@ -14,12 +14,10 @@ final class StatusItemController: NSObject {
     self.onOpen = onOpen
     super.init()
 
-    if let button = statusItem.button {
-      button.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-      button.target = self
-      button.action = #selector(buttonClicked)
-      button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-    }
+    statusItem.button?.font = .monospacedDigitSystemFont(
+      ofSize: NSFont.systemFontSize, weight: .regular)
+    menu.delegate = self
+    statusItem.menu = menu
     setTitle(title)
   }
 
@@ -31,19 +29,7 @@ final class StatusItemController: NSObject {
     NSStatusBar.system.removeStatusItem(statusItem)
   }
 
-  @objc private func buttonClicked() {
-    let event = NSApp.currentEvent
-    if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
-      rebuildMenu()
-      statusItem.menu = menu
-      statusItem.button?.performClick(nil)
-      statusItem.menu = nil
-    } else {
-      onOpen()
-    }
-  }
-
-  private func rebuildMenu() {
+  func menuNeedsUpdate(_ menu: NSMenu) {
     menu.removeAllItems()
     menu.addItem(MenuAction.item("Open Tickover", key: "", onOpen))
     let extra = extraMenuItems()
