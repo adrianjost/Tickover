@@ -41,19 +41,24 @@ final class AppController {
     }
     if !(launchedAtLogin && preferences.trayEnabled) {
       openMainWindow()
+    } else {
+      loadMainWindow()  // so the first click opens it without waiting for the page
     }
     Task { await refreshTrayOnLaunch() }
   }
 
+  private func loadMainWindow() {
+    guard mainWindow == nil else { return }
+    mainWindow = MainWindowController(
+      handleRequest: { [unowned self] method, params in
+        try await handle(method: method, params: params)
+      },
+      onClose: { [unowned self] in mainWindowClosed() }
+    )
+  }
+
   func openMainWindow() {
-    if mainWindow == nil {
-      mainWindow = MainWindowController(
-        handleRequest: { [unowned self] method, params in
-          try await handle(method: method, params: params)
-        },
-        onClose: { [unowned self] in mainWindowClosed() }
-      )
-    }
+    loadMainWindow()
     NSApp.setActivationPolicy(.regular)
     mainWindow?.show()
     // Cooperative NSApp.activate() is declined when opened from the menu bar item,
@@ -70,7 +75,6 @@ final class AppController {
   var shouldTerminateAfterLastWindowClosed: Bool { !preferences.trayEnabled }
 
   private func mainWindowClosed() {
-    mainWindow = nil
     NSApp.setActivationPolicy(.accessory)
   }
 
