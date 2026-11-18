@@ -18,6 +18,8 @@ final class MainWindowController: NSObject, NSWindowDelegate, WKScriptMessageHan
   private let webView: ChartWebView
   private let handleRequest: RequestHandler
   private let onClose: () -> Void
+  private var pageLoaded = false
+  private var showWhenLoaded = false
 
   init(handleRequest: @escaping RequestHandler, onClose: @escaping () -> Void) {
     self.handleRequest = handleRequest
@@ -78,10 +80,32 @@ final class MainWindowController: NSObject, NSWindowDelegate, WKScriptMessageHan
         url: URL(string: "\(BundledWebHandler.scheme)://\(BundledWebHandler.host)/index.html")!))
   }
 
+  /// The first time, waits briefly for the page so the window doesn't open blank.
   func show() {
+    guard pageLoaded else {
+      showWhenLoaded = true
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+        if self?.showWhenLoaded == true { self?.showNow() }
+      }
+      return
+    }
+    showNow()
+  }
+
+  private func showNow() {
+    showWhenLoaded = false
     window.deminiaturize(nil)
     window.makeKeyAndOrderFront(nil)
     window.orderFrontRegardless()
+  }
+
+  func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+    pageLoaded = true
+    if showWhenLoaded { showNow() }
+  }
+
+  func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+    webView.reload()
   }
 
   func close() {
@@ -146,8 +170,8 @@ final class MainWindowController: NSObject, NSWindowDelegate, WKScriptMessageHan
     return WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true)
   }
 
+  /// The window and its page stay loaded after closing, so opening it again is instant.
   func windowWillClose(_ notification: Notification) {
-    webView.configuration.userContentController.removeAllScriptMessageHandlers()
     onClose()
   }
 
