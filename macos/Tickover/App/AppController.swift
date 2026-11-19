@@ -467,6 +467,8 @@ final class AppController {
     case "stopTimer":
       try await server.stopTimer()
       runningEntry = nil
+    case "continueTimer":
+      runningEntry = try await continueLastTimer(server)
     default:
       if let running = try await server.runningTimer() {
         try await server.delete(id: running.id)
@@ -476,6 +478,22 @@ final class AppController {
     updateTrayTitle()
     mainWindow?.notifyTrackingChanged()
     await refreshTray()
+  }
+
+  /// Runs the newest entry of the last week again from its original start, e.g. after a stop by mistake.
+  private func continueLastTimer(_ server: TrackingServer) async throws -> TrackedEntry {
+    let now = Date()
+    let recent = try await server.entries(
+      from: now.addingTimeInterval(-7 * 86_400), to: now.addingTimeInterval(86_400))
+    guard
+      let last = recent.max(by: {
+        ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast)
+      })
+    else {
+      throw ClockifyError(message: "There is no timer from the last 7 days to continue.")
+    }
+    guard last.end != nil else { return last }
+    return try await server.update(id: last.id, start: last.start, end: nil)
   }
 
   private func runTimerAction(_ action: String) {
@@ -507,7 +525,10 @@ final class AppController {
       ]
     }
     return [
-      MenuAction.item("Start timer", key: "") { [unowned self] in runTimerAction("startTimer") }
+      MenuAction.item("Start timer", key: "") { [unowned self] in runTimerAction("startTimer") },
+      MenuAction.item("Continue last timer", key: "") { [unowned self] in
+        runTimerAction("continueTimer")
+      },
     ]
   }
 
