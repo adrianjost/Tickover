@@ -1,6 +1,7 @@
 import type { DataSource } from "../shared/rpc.ts";
 import { bridge } from "./bridge.ts";
 import { initializeThemePicker } from "./theme-picker.ts";
+import { initializeTimeFormatPicker } from "./time-format.ts";
 import { initializeWorkHours } from "./work-hours.ts";
 
 export function initializeSettings(onSettingsSaved: () => void, onCancel?: () => void) {
@@ -24,6 +25,7 @@ export function initializeSettings(onSettingsSaved: () => void, onCancel?: () =>
   }
 
   initializeWorkHours(document.querySelector<HTMLElement>("#work-hours")!);
+  initializeTimeFormatPicker();
 
   void bridge
     .getTheme({})

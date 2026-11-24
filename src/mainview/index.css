@@ -1706,6 +1706,10 @@ button.icon-button {
   gap: 6px;
 }
 
+.entry-times input {
+  width: 6.5em;
+}
+
 .entry-duration {
   min-width: 4.5em;
   color: var(--text-secondary);

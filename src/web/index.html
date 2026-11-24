@@ -137,9 +137,22 @@
           <div class="row">
             <span class="row-label">Time</span>
             <span class="entry-times">
-              <input id="entry-start" type="time" required aria-label="Start" />
+              <input
+                id="entry-start"
+                type="text"
+                required
+                aria-label="Start"
+                autocomplete="off"
+                spellcheck="false"
+              />
               <span>–</span>
-              <input id="entry-end" type="time" aria-label="End" />
+              <input
+                id="entry-end"
+                type="text"
+                aria-label="End"
+                autocomplete="off"
+                spellcheck="false"
+              />
             </span>
           </div>
           <div class="row">
@@ -240,6 +253,15 @@
               <label><input type="radio" name="theme" value="system" /><span>System</span></label>
               <label><input type="radio" name="theme" value="light" /><span>Light</span></label>
               <label><input type="radio" name="theme" value="dark" /><span>Dark</span></label>
+            </div>
+          </div>
+          <div class="row">
+            <span class="row-label">Time format</span>
+            <div class="segmented" role="radiogroup" aria-label="Time format">
+              <label><input type="radio" name="time-format" value="24h" /><span>14:30</span></label>
+              <label
+                ><input type="radio" name="time-format" value="12h" /><span>2:30 PM</span></label
+              >
             </div>
           </div>
         </div>

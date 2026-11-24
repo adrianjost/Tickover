@@ -1,4 +1,5 @@
 import type { OvertimeData } from "../shared/rpc.ts";
+import { formatTime } from "./time-format.ts";
 import { bridge } from "./bridge.ts";
 import { initRangePicker } from "./range-picker.ts";
 import {
@@ -117,7 +118,7 @@ export function initializeDashboard(onNavigateToSettings: () => void) {
       renderDashboard(data, overtimeValue, content);
       setLoading(false);
       if (lastFetchedEl) {
-        lastFetchedEl.textContent = `Updated ${new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+        lastFetchedEl.textContent = `Updated ${formatTime(new Date())}`;
         lastFetchedEl.appendChild(fetchSpinner!);
       }
     } catch (error) {

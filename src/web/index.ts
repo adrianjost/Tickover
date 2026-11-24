@@ -4,6 +4,7 @@ import { setTransport } from "../mainview/bridge.ts";
 import { DASHBOARD_CACHE_KEY, initializeDashboard } from "../mainview/dashboard.ts";
 import { initializeTracking } from "../mainview/tracking.ts";
 import { initializeThemePicker } from "../mainview/theme-picker.ts";
+import { initializeTimeFormatPicker } from "../mainview/time-format.ts";
 import { initializeWorkHours } from "../mainview/work-hours.ts";
 import { createOfflineStore, ServerError } from "./offline.ts";
 
@@ -498,6 +499,7 @@ renderSources(document.querySelector<HTMLElement>("#settings-import-sources")!);
 
 // Kept per browser; theme.js applies it before the page is drawn.
 const THEME_KEY = "theme";
+initializeTimeFormatPicker();
 initializeThemePicker(
   (document.documentElement.dataset["theme"] as "light" | "dark" | undefined) ?? "system",
   (theme) => {
