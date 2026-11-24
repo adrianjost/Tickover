@@ -2,10 +2,10 @@ import Foundation
 
 /// A time entry on the self-hosted server. Times are ISO 8601 strings in UTC; `end` is nil
 /// while the timer runs.
-struct TrackedEntry: Codable {
+struct TrackedEntry: Codable, Equatable {
   let id: String
   let start: String
-  let end: String?
+  var end: String?
 
   var startDate: Date? { ISO8601Instant.parse(start) }
   var endDate: Date? { end.flatMap(ISO8601Instant.parse) }
@@ -73,17 +73,13 @@ struct TrackingServer {
     return timer.running
   }
 
-  func startTimer() async throws -> TrackedEntry? {
-    let timer: Timer = try await request("POST", "api/timer/start")
-    return timer.running
-  }
-
-  func stopTimer() async throws {
-    _ = try await send("POST", "api/timer/stop")
-  }
-
   func create(start: String, end: String?) async throws -> TrackedEntry {
     try await request("POST", "api/entries", body: ["start": start, "end": end])
+  }
+
+  /// Creates or replaces the entry under its own ID, so sending it again is harmless.
+  func put(_ entry: TrackedEntry) async throws -> TrackedEntry {
+    try await request("PUT", "api/entries/\(entry.id)", body: ["start": entry.start, "end": entry.end])
   }
 
   func update(id: String, start: String, end: String?) async throws -> TrackedEntry {
@@ -147,7 +143,7 @@ struct TrackingServer {
     do {
       (data, response) = try await Self.session.data(for: request)
     } catch {
-      throw ClockifyError(message: "Time tracking server unreachable: \(error.localizedDescription)")
+      throw ServerUnreachableError(reason: error.localizedDescription)
     }
     guard let http = response as? HTTPURLResponse else {
       throw ClockifyError(message: "Unexpected response from the time tracking server")
@@ -161,6 +157,11 @@ struct TrackingServer {
     }
     return data
   }
+}
+
+struct ServerUnreachableError: LocalizedError {
+  let reason: String
+  var errorDescription: String? { "Time tracking server unreachable: \(reason)" }
 }
 
 /// The server no longer accepts the session, e.g. after a password or username change.

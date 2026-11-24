@@ -7,6 +7,8 @@ final class AppController {
   private let store = TimeEntryStore(cacheFile: Paths.timeEntryCache)
   private var currentApiKey: String?
   private var server: TrackingServer?
+  private let timerOutbox = TimerOutbox(file: Paths.timerOutbox)
+  /// The running timer as this Mac knows it, including changes not yet sent to the server.
   private var runningEntry: TrackedEntry?
   /// Why the server session ended, shown in the settings until you sign in again.
   private var signedOutNotice: String?
@@ -122,8 +124,7 @@ final class AppController {
       await signOutOfServer()
       return nil
     case "getTimer":
-      runningEntry = try await activeServer?.runningTimer()
-      updateTrayTitle()
+      try await syncTimer()
       return try json(["running": runningEntry])
     case "startTimer", "stopTimer", "discardTimer":
       try await timerAction(method)
@@ -219,6 +220,7 @@ final class AppController {
       preferences.save()
       server = nil
       runningEntry = nil
+      timerOutbox.clear()
       store.clear()
       currentApiKey = nil
       stopTrayRefresh()
@@ -285,7 +287,7 @@ final class AppController {
     let (from, to) = try Self.localRange(startDate, endDate)
     async let schedules = workSchedules(server: server)
     let entries = try await server.entries(from: from, to: to)
-    runningEntry = entries.first { $0.end == nil }
+    if timerOutbox.isEmpty { runningEntry = entries.first { $0.end == nil } }
     let data = try OvertimeReport.build(
       secondsPerDay: TrackingServer.secondsPerDay(entries), startDate: startDate,
       endDate: endDate, schedules: await schedules)
@@ -298,6 +300,7 @@ final class AppController {
     let startDate = preferences.startDate ?? String(format: "%04d-01-01", year)
     do {
       if let server = activeServer {
+        try await syncTimer()
         let today = PlainDates.formatLocal(Date())
         _ = try await analyze(server: server, startDate: startDate, endDate: today)
       } else if let apiKey = activeApiKey {
@@ -454,30 +457,56 @@ final class AppController {
     Keychain.clearServerToken()
     server = nil
     runningEntry = nil
+    timerOutbox.clear()
     updateTrayTitle()
     stopTrayRefresh()
     setOvertimeTitle("--")
   }
 
+  /// Changes the timer here first and sends it to the server when it can be reached.
   private func timerAction(_ action: String) async throws {
     let server = try requireServer()
+    try await syncTimer()
+    let now = ISO8601Instant.format(Date())
     switch action {
     case "startTimer":
-      runningEntry = try await server.startTimer()
+      if runningEntry == nil {
+        let entry = TrackedEntry(id: UUID().uuidString.lowercased(), start: now, end: nil)
+        timerOutbox.add(.put(entry))
+        runningEntry = entry
+      }
     case "stopTimer":
-      try await server.stopTimer()
+      if var entry = runningEntry {
+        entry.end = now
+        timerOutbox.add(.put(entry))
+      }
       runningEntry = nil
     case "continueTimer":
       runningEntry = try await continueLastTimer(server)
     default:
-      if let running = try await server.runningTimer() {
-        try await server.delete(id: running.id)
-      }
+      if let entry = runningEntry { timerOutbox.add(.delete(id: entry.id)) }
       runningEntry = nil
     }
-    updateTrayTitle()
+    try await syncTimer()
     mainWindow?.notifyTrackingChanged()
     await refreshTray()
+  }
+
+  /// Sends timer changes made offline and reads the running timer, unless the server is unreachable.
+  private func syncTimer() async throws {
+    guard let server = activeServer else { return }
+    do {
+      let refused = try await timerOutbox.flush(to: server)
+      if !refused.isEmpty {
+        let alert = NSAlert()
+        alert.messageText = "Some timer changes could not be synced"
+        alert.informativeText = refused.joined(separator: "\n")
+        alert.runModal()
+      }
+      let running = try await server.runningTimer()
+      if timerOutbox.isEmpty { runningEntry = running }
+    } catch is ServerUnreachableError {}
+    updateTrayTitle()
   }
 
   /// Runs the newest entry of the last week again from its original start, e.g. after a stop by mistake.

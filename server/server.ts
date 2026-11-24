@@ -917,7 +917,14 @@ function timerApi(user: User) {
       const current = entries.byId.get({ user_id, id });
       const input = await body(request);
       const start = instant(input.start, "start");
-      const end = input.end == null ? null : instant(input.end, "end");
+      let end = input.end == null ? null : instant(input.end, "end");
+      // Two timers started on different devices, e.g. one while offline: the earlier one ends
+      // when the later one starts, so no tracked time is lost.
+      const other = end === null ? entries.running.get({ user_id }) : null;
+      if (other && other.id !== id) {
+        if (other.start < start) save({ ...toEntry(other), end: start });
+        else if (start < other.start) end = other.start;
+      }
       const names =
         "labels" in input
           ? labelNames(input.labels, "labels")
