@@ -6,6 +6,7 @@ enum Paths {
     .appendingPathComponent(".tickover", isDirectory: true)
   static let preferences = stateDirectory.appendingPathComponent("preferences.json")
   static let timeEntryCache = stateDirectory.appendingPathComponent("time-entries-cache.json")
+  static let timerOutbox = stateDirectory.appendingPathComponent("timer-outbox.json")
 }
 
 struct Preferences: Codable {

@@ -177,6 +177,9 @@ stop the timer and add, edit or delete entries as usual; the page saves the chan
 and sends them to the server when it can reach it again (a badge at the top shows how many are
 still waiting). While offline, it shows the entries it saw last.
 
+If timers were started on two devices, for example one while offline, the earlier timer ends when
+the later one starts, so no tracked time is lost. Otherwise the last change sent wins.
+
 Installing and offline use need HTTPS (for example through your NAS's reverse proxy), as browsers
 only allow them on secure pages. Over plain `http://` the page works as before, online only.
 
@@ -216,6 +219,8 @@ Once connected:
 
 - Start and stop the timer from the toolbar or from the menu bar item's menu, which can also continue the last timer after a stop by mistake. While the timer runs,
   the menu bar shows a dot and its length in front of your overtime, e.g. `● 1:25 · +12h 30m`.
+- The timer also works without a connection: the app keeps the change and sends it once the server
+  can be reached again. Everything else needs the server.
 - The list button in the toolbar opens your time entries. Click an entry to change or delete it, or
   use "Add entry" for time you forgot to track. An end time earlier than the start time counts as the
   next day.
@@ -241,7 +246,7 @@ need it as `Authorization: Bearer <token>`. Request bodies must be JSON with
 | `GET /api/labels`                                     | Your labels (`{id, name, color}`)                                                                                                   |
 | `GET /api/entries?from=…&to=…`                        | Entries overlapping the range                                                                                                       |
 | `POST /api/entries` `{start, end, labels?}`           | Add an entry                                                                                                                        |
-| `PUT /api/entries/:id` `{start, end, labels?}`        | Add or replace an entry under your own UUID                                                                                         |
+| `PUT /api/entries/:id` `{start, end, labels?}`        | Add or replace an entry under your own UUID; a running one ends a timer that started earlier                                        |
 | `PATCH /api/entries/:id` `{start?, end?, labels?}`    | Change an entry                                                                                                                     |
 | `DELETE /api/entries/:id`                             | Delete an entry                                                                                                                     |
 | `GET /api/timer`                                      | The running entry, if any                                                                                                           |
