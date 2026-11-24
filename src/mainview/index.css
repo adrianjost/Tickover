@@ -1392,8 +1392,8 @@ input[type="checkbox"] {
 }
 
 .timer-button[hidden],
-.timer-start-edit[hidden],
 .timer-discard[hidden],
+.timer-start-edit[hidden],
 .icon-button[hidden] {
   display: none;
 }
@@ -1401,6 +1401,68 @@ input[type="checkbox"] {
 .timer-button.is-running {
   border-color: color-mix(in srgb, var(--negative) 45%, transparent);
   color: var(--negative);
+}
+
+/* Discarding is rare, so it is a small × joined to the end of the timer, away from "Started …". */
+.timer-group {
+  display: inline-flex;
+}
+
+.timer-group:has(.timer-discard:not([hidden])) .timer-button {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.timer-discard {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 30px;
+  padding: 0 9px 0 7px;
+  border: 0.5px solid color-mix(in srgb, var(--negative) 45%, transparent);
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  background: var(--control-bg);
+  color: var(--negative);
+  white-space: nowrap;
+}
+
+.timer-discard svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.timer-discard-confirm {
+  display: none;
+  font-weight: 600;
+}
+
+.timer-discard.is-confirming .timer-discard-confirm {
+  display: inline;
+}
+
+.timer-discard:hover,
+.timer-discard.is-confirming {
+  background: color-mix(in srgb, var(--negative) 18%, var(--control-bg));
+}
+
+.toolbar-trailing .timer-discard {
+  border: none;
+  border-left: 1px solid rgb(0 0 0 / 0.18);
+  border-radius: 0 15px 15px 0;
+  background: var(--negative);
+  color: #fff;
+  font-size: 13px;
+}
+
+.toolbar-trailing .timer-discard:hover,
+.toolbar-trailing .timer-discard.is-confirming {
+  background: color-mix(in srgb, var(--negative) 80%, #000);
 }
 
 /* In the app's toolbar, the timer is the main action: a filled pill like a primary button. */
@@ -1456,19 +1518,13 @@ input[type="checkbox"] {
   clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
-.toolbar-trailing .timer-start-edit,
-.toolbar-trailing .timer-discard {
+.toolbar-trailing .timer-start-edit {
   height: 30px;
   border-radius: 15px;
 }
 
 .timer-start-edit {
   font-variant-numeric: tabular-nums;
-}
-
-.timer-discard.is-confirming {
-  border-color: color-mix(in srgb, var(--negative) 45%, transparent);
-  color: var(--negative);
 }
 
 .timer-icon {

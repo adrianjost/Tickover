@@ -83,7 +83,20 @@
             </div>
           </section>
 
-          <button type="button" id="timer-button" class="timer-button" hidden></button>
+          <div class="timer-group">
+            <button type="button" id="timer-button" class="timer-button" hidden></button>
+            <button
+              type="button"
+              id="timer-discard"
+              class="timer-discard"
+              aria-label="Discard timer"
+              title="Discard timer"
+              hidden
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17" /></svg>
+              <span class="timer-discard-confirm">Discard?</span>
+            </button>
+          </div>
           <div class="timer-actions">
             <button
               type="button"
@@ -91,9 +104,6 @@
               class="btn timer-start-edit"
               hidden
             ></button>
-            <button type="button" id="timer-discard" class="btn timer-discard" hidden>
-              Discard timer
-            </button>
           </div>
 
           <div class="charts-container">

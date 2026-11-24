@@ -188,6 +188,21 @@ body.web {
   font-weight: 600;
 }
 
+.web .timer-group {
+  display: flex;
+}
+
+.web .timer-discard {
+  min-width: 56px;
+  border-radius: 0 14px 14px 0;
+  font-size: 17px;
+}
+
+.web .timer-discard svg {
+  width: 18px;
+  height: 18px;
+}
+
 .web .timer-button .timer-icon {
   width: 14px;
   height: 14px;
@@ -208,8 +223,7 @@ body.web {
   display: none;
 }
 
-.web .timer-start-edit,
-.web .timer-discard {
+.web .timer-start-edit {
   flex: 1;
   justify-content: center;
   height: 40px;
