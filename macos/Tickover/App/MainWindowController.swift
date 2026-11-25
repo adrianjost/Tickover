@@ -159,11 +159,19 @@ final class MainWindowController: NSObject, NSWindowDelegate, WKScriptMessageHan
       button(NSButton(), symbol: "gearshape", label: "Settings (⌘,)", action: #selector(openSettings)),
     ])
     stack.spacing = 14
-    stack.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 12)
     sidebarButton.isHidden = true
+    // The title bar sizes an accessory by its frame, so it needs a fixed one; the buttons keep
+    // to the right edge, also while the sidebar button is hidden.
+    let container = NSView(frame: NSRect(x: 0, y: 0, width: 76, height: 28))
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    container.addSubview(stack)
+    NSLayoutConstraint.activate([
+      stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
+      stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+    ])
     let accessory = NSTitlebarAccessoryViewController()
     accessory.layoutAttribute = .trailing
-    accessory.view = stack
+    accessory.view = container
     window.addTitlebarAccessoryViewController(accessory)
   }
 
