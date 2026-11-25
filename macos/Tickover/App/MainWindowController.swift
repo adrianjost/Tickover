@@ -18,6 +18,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, WKScriptMessageHan
   private let webView: ChartWebView
   private let handleRequest: RequestHandler
   private let onClose: () -> Void
+  private let sidebarButton = NSButton()
   private var pageLoaded = false
   private var showWhenLoaded = false
 
@@ -65,6 +66,7 @@ final class MainWindowController: NSObject, NSWindowDelegate, WKScriptMessageHan
 
     super.init()
 
+    addTitlebarButtons()
     configuration.userContentController.addScriptMessageHandler(
       self, contentWorld: .page, name: "rpc")
     window.delegate = self
@@ -139,6 +141,45 @@ final class MainWindowController: NSObject, NSWindowDelegate, WKScriptMessageHan
       frame.origin.x = max(visible.minX, min(frame.origin.x, visible.maxX - frame.width))
     }
     window.setFrame(frame, display: true, animate: true)
+  }
+
+  /// The sidebar and settings buttons sit in the title bar, apart from the time tracking controls.
+  private func addTitlebarButtons() {
+    func button(_ button: NSButton, symbol: String, label: String, action: Selector) -> NSButton {
+      button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+      button.toolTip = label
+      button.isBordered = false
+      button.contentTintColor = .secondaryLabelColor
+      button.target = self
+      button.action = action
+      return button
+    }
+    let stack = NSStackView(views: [
+      button(sidebarButton, symbol: "sidebar.right", label: "Time entries", action: #selector(toggleSidebar)),
+      button(NSButton(), symbol: "gearshape", label: "Settings (⌘,)", action: #selector(openSettings)),
+    ])
+    stack.spacing = 14
+    stack.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 12)
+    sidebarButton.isHidden = true
+    let accessory = NSTitlebarAccessoryViewController()
+    accessory.layoutAttribute = .trailing
+    accessory.view = stack
+    window.addTitlebarAccessoryViewController(accessory)
+  }
+
+  @objc private func toggleSidebar() {
+    webView.evaluateJavaScript("window.dispatchEvent(new Event('toggle-entries'))")
+  }
+
+  @objc private func openSettings() {
+    showSettings()
+  }
+
+  /// An open sidebar shows as a tinted icon.
+  func setSidebarButton(visible: Bool, open: Bool) {
+    sidebarButton.isHidden = !visible
+    sidebarButton.contentTintColor = open ? .controlAccentColor : .secondaryLabelColor
+    sidebarButton.toolTip = open ? "Hide time entries" : "Show time entries"
   }
 
   /// Tells the page that the timer or entries changed outside of it (e.g. from the menu bar).
