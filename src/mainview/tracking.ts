@@ -1,5 +1,6 @@
 import type { TrackedEntry } from "../shared/rpc.ts";
 import { bridge } from "./bridge.ts";
+import { formatTime, parseTime } from "./time-format.ts";
 
 const DAYS_PER_PAGE = 30;
 const MINUTE = 60 * 1000;
@@ -19,14 +20,6 @@ function addDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
   return result;
-}
-
-function timeOfDay(date: Date): string {
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function inputTime(date: Date): string {
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
 function formatDuration(ms: number, withSeconds = false): string {
@@ -122,8 +115,8 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
     if (running) {
       const elapsed = formatDuration(Date.now() - Date.parse(running.start), true);
       timerButton.innerHTML = `<span class="timer-icon timer-icon--stop"></span>${elapsed}`;
-      timerButton.title = `Stop timer (started ${timeOfDay(new Date(running.start))})`;
-      startEditButton.textContent = `Started ${timeOfDay(new Date(running.start))}`;
+      timerButton.title = `Stop timer (started ${formatTime(new Date(running.start))})`;
+      startEditButton.textContent = `Started ${formatTime(new Date(running.start))}`;
       startEditButton.title = "Change when the timer started";
     } else {
       timerButton.innerHTML = `<span class="timer-icon timer-icon--start"></span>Start`;
@@ -267,8 +260,8 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
     row.type = "button";
     row.className = "row entry-row";
     row.innerHTML = `<span class="entry-span"></span><span class="entry-total"></span>`;
-    const until = end ? timeOfDay(new Date(end)) : "now";
-    row.children[0]!.textContent = `${timeOfDay(new Date(start))} – ${until}`;
+    const until = end ? formatTime(new Date(end)) : "now";
+    row.children[0]!.textContent = `${formatTime(new Date(start))} – ${until}`;
     row.children[1]!.textContent = formatDuration(ms);
     return row;
   }
@@ -290,12 +283,21 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
 
   // ─── Editor ────────────────────────────────────────────────────────────
 
+  function timeOn(input: HTMLInputElement): Date | null {
+    const time = parseTime(input.value);
+    if (!time || !dateInput.value) return null;
+    const date = new Date(`${dateInput.value}T00:00`);
+    date.setHours(time.hours, time.minutes);
+    return date;
+  }
+
   /** Start and end as dates; an end before the start is on the next day. */
   function editedTimes(): { start: Date; end: Date | null } | null {
-    if (!dateInput.value || !startInput.value) return null;
-    const start = new Date(`${dateInput.value}T${startInput.value}`);
-    if (!endInput.value) return { start, end: null };
-    let end = new Date(`${dateInput.value}T${endInput.value}`);
+    const start = timeOn(startInput);
+    if (!start) return null;
+    if (!endInput.value.trim()) return { start, end: null };
+    let end = timeOn(endInput);
+    if (!end) return null;
     if (end <= start) end = addDays(end, 1);
     return { start, end };
   }
@@ -319,8 +321,8 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
     dialogTitle.textContent =
       entry?.end === null ? "Running timer" : entry ? "Edit time entry" : "Add time entry";
     dateInput.value = isoDate(start);
-    startInput.value = inputTime(start);
-    endInput.value = end ? inputTime(end) : "";
+    startInput.value = formatTime(start);
+    endInput.value = end ? formatTime(end) : "";
     endInput.required = entry?.end !== null;
     deleteButton.hidden = entry === null;
     errorLabel.textContent = "";
@@ -331,6 +333,13 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
 
   for (const input of [dateInput, startInput, endInput]) {
     input.addEventListener("input", updateDuration);
+  }
+  // Shows a time typed as e.g. "930" the way the setting writes it.
+  for (const input of [startInput, endInput]) {
+    input.addEventListener("blur", () => {
+      const date = timeOn(input);
+      if (date) input.value = formatTime(date);
+    });
   }
   el<HTMLButtonElement>("#entry-cancel").addEventListener("click", () => dialog.close());
 
@@ -351,7 +360,10 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const times = editedTimes();
-    if (!times) return;
+    if (!times) {
+      errorLabel.textContent = "Enter times like 14:30 or 2:30 PM.";
+      return;
+    }
     if (times.end && times.end.getTime() > Date.now() + MINUTE) {
       errorLabel.textContent = "The end can't be in the future.";
       return;
