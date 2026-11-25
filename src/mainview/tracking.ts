@@ -96,8 +96,8 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
 
   function renderTimer() {
     timerButton.hidden = !enabled;
-    discardButton.hidden = !enabled || running === null;
     startEditButton.hidden = !enabled || running === null;
+    discardButton.hidden = !enabled || running === null;
     if (!running) resetDiscard();
     if (entriesToggle) {
       entriesToggle.hidden = !enabled;
@@ -150,18 +150,17 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
   });
 
   let confirmDiscard: ReturnType<typeof setTimeout> | null = null;
-  const discardLabel = discardButton.textContent?.trim() ?? "Discard";
   function resetDiscard() {
     if (confirmDiscard !== null) clearTimeout(confirmDiscard);
     confirmDiscard = null;
-    discardButton.textContent = discardLabel;
     discardButton.classList.remove("is-confirming");
+    discardButton.title = "Discard timer";
   }
 
   discardButton.addEventListener("click", async () => {
     if (confirmDiscard === null) {
-      discardButton.textContent = "Click again to discard";
       discardButton.classList.add("is-confirming");
+      discardButton.title = "Click again to discard the timer";
       confirmDiscard = setTimeout(resetDiscard, 3000);
       return;
     }
@@ -325,6 +324,7 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
     endInput.value = end ? formatTime(end) : "";
     endInput.required = entry?.end !== null;
     deleteButton.hidden = entry === null;
+    resetDelete();
     errorLabel.textContent = "";
     updateDuration();
     dialog.showModal();
@@ -384,20 +384,24 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
   let confirmDelete: ReturnType<typeof setTimeout> | null = null;
   deleteButton.addEventListener("click", () => {
     if (!editing) return;
+    const isTimer = editing.end === null;
     if (confirmDelete === null) {
-      deleteButton.textContent = "Click again to delete";
+      deleteButton.textContent = isTimer ? "Click again to discard" : "Click again to delete";
       deleteButton.classList.add("btn-danger-confirm");
       confirmDelete = setTimeout(resetDelete, 3000);
       return;
     }
     resetDelete();
     const id = editing.id;
-    void run(() => bridge.deleteEntry({ id }));
+    void run(async () => {
+      if (isTimer) running = (await bridge.discardTimer({})).running;
+      else await bridge.deleteEntry({ id });
+    });
   });
   function resetDelete() {
     if (confirmDelete !== null) clearTimeout(confirmDelete);
     confirmDelete = null;
-    deleteButton.textContent = "Delete";
+    deleteButton.textContent = editing?.end === null ? "Discard timer" : "Delete";
     deleteButton.classList.remove("btn-danger-confirm");
   }
   dialog.addEventListener("close", resetDelete);
