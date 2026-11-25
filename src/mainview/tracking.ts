@@ -328,14 +328,27 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
     errorLabel.textContent = "";
     updateDuration();
     dialog.showModal();
+    // Typing a time like "845" and pressing Enter is all it takes to correct the start.
     startInput.focus();
+    startInput.select();
   }
 
   for (const input of [dateInput, startInput, endInput]) {
     input.addEventListener("input", updateDuration);
   }
-  // Shows a time typed as e.g. "930" the way the setting writes it.
+  // Shows a time typed as e.g. "930" the way the setting writes it; the arrow keys nudge it.
   for (const input of [startInput, endInput]) {
+    input.title = "↑ ↓ changes it by a minute, with Shift by an hour";
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+      const date = timeOn(input);
+      if (!date) return;
+      event.preventDefault();
+      const minutes = (event.shiftKey ? 60 : 1) * (event.key === "ArrowUp" ? 1 : -1);
+      date.setMinutes(date.getMinutes() + minutes);
+      input.value = formatTime(date);
+      updateDuration();
+    });
     input.addEventListener("blur", () => {
       const date = timeOn(input);
       if (date) input.value = formatTime(date);
