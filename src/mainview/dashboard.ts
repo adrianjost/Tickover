@@ -1063,8 +1063,32 @@ function setupChartInteraction(container: HTMLDivElement): void {
   container.addEventListener("pointerup", endDrag);
   container.addEventListener("pointercancel", endDrag);
 
+  // A click on a bar zooms to its week, with half of the week before and after for context.
+  // It waits for a possible double-click, which resets the zoom instead.
+  let clickStart = { x: 0, y: 0 };
+  let clickTimer: ReturnType<typeof setTimeout> | undefined;
+  container.addEventListener("pointerdown", (e) => {
+    clickStart = { x: e.clientX, y: e.clientY };
+  });
+  container.addEventListener("click", (e) => {
+    if (lastPointerType === "touch" || e.detail > 1) return;
+    if (Math.hypot(e.clientX - clickStart.x, e.clientY - clickStart.y) > 4) return; // a drag
+    const monday = chartHover?.weekAt(e.clientX) ?? null;
+    if (monday === null) return;
+    clearTimeout(clickTimer);
+    clickTimer = setTimeout(() => {
+      const len = lastFilledData.length;
+      const count = Math.min(14, len);
+      if (count > len - 0.5) return;
+      requestAnimatedZoom();
+      focusRange = clampPan(monday - 3.5, count, len);
+      dispatchRerender();
+    }, 250);
+  });
+
   // Double-click to reset to full range. Not for touch, where two quick taps look at two bars.
   container.addEventListener("dblclick", () => {
+    clearTimeout(clickTimer);
     if (lastPointerType === "touch") return;
     requestAnimatedZoom();
     focusRange = null;
@@ -1084,6 +1108,8 @@ function getWeekKey(isoDate: string): string {
 let chartHover: {
   /** Shows the bar under the point; with `toggle`, a second tap on the same bar hides it. */
   touch(clientX: number, clientY: number, toggle: boolean): void;
+  /** Day index of the Monday of the bar under the point; negative before the first day. */
+  weekAt(clientX: number): number | null;
   clear(): void;
 } | null = null;
 // A tooltip opened by touch stays until the next tap or scroll, as there is no hover to end it.
@@ -1428,6 +1454,14 @@ function createBarChart(
       );
     },
     clear: clearHover,
+    weekAt(clientX) {
+      const index = barAt(clientX);
+      const bar = chartBars[index];
+      if (!bar) return null;
+      const day = Math.floor(bar.start);
+      const weekday = new Date(`${lastFilledData[day]?.date}T00:00:00`).getDay();
+      return day - ((weekday + 6) % 7);
+    },
   };
 
   return svg;
