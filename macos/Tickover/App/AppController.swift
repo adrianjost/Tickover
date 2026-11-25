@@ -153,6 +153,10 @@ final class AppController {
     case "closeApp":
       mainWindow?.close()
       return nil
+    case "setSidebarButton":
+      mainWindow?.setSidebarButton(
+        visible: params["visible"] as? Bool ?? false, open: params["open"] as? Bool ?? false)
+      return nil
     case "setContentMinWidth":
       if let width = params["width"] as? Double {
         mainWindow?.setPageMinWidth(width)

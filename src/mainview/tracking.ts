@@ -60,7 +60,6 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
   const discardButton = el<HTMLButtonElement>("#timer-discard");
   const startEditButton = el<HTMLButtonElement>("#timer-start-edit");
   // The app shows the entries in a sidebar that can be turned off; the web page always shows them.
-  const entriesToggle = document.querySelector<HTMLButtonElement>("#entries-toggle");
   const sidebar = document.querySelector<HTMLElement>("#entries-sidebar");
   const list = el<HTMLDivElement>("#entries-list");
   const moreButton = el<HTMLButtonElement>("#entries-more");
@@ -99,11 +98,7 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
     startEditButton.hidden = !enabled || running === null;
     discardButton.hidden = !enabled || running === null;
     if (!running) resetDiscard();
-    if (entriesToggle) {
-      entriesToggle.hidden = !enabled;
-      entriesToggle.setAttribute("aria-pressed", String(sidebarOpen === true));
-      entriesToggle.title = sidebarOpen ? "Hide time entries" : "Show time entries";
-    }
+    reportSidebarButton();
     if (sidebar && sidebar.hidden === entriesShown()) {
       sidebar.hidden = !entriesShown();
       // The window widens for the sidebar instead of squeezing the chart.
@@ -270,7 +265,20 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
     void loadEntries();
   });
   el<HTMLButtonElement>("#add-entry").addEventListener("click", () => openEditor(null));
-  entriesToggle?.addEventListener("click", () => {
+  // The app's sidebar button is a native one in the title bar, outside the page.
+  let reportedSidebarButton = "";
+  function reportSidebarButton() {
+    if (alwaysShowEntries) return;
+    const state = {
+      visible: enabled && location.hash !== "#settings",
+      open: sidebarOpen === true,
+    };
+    if (JSON.stringify(state) === reportedSidebarButton) return;
+    reportedSidebarButton = JSON.stringify(state);
+    void bridge.setSidebarButton(state).catch((error) => console.error(error));
+  }
+  window.addEventListener("hashchange", reportSidebarButton);
+  window.addEventListener("toggle-entries", () => {
     sidebarOpen = !sidebarOpen;
     void bridge.setEntriesSidebar({ enabled: sidebarOpen });
     renderTimer();
@@ -428,7 +436,7 @@ export function initializeTracking({ alwaysShowEntries = false, assumeEnabled = 
     } catch (error) {
       console.error("Loading the timer failed:", error);
     }
-    if (entriesToggle && sidebarOpen === null) {
+    if (!alwaysShowEntries && sidebarOpen === null) {
       sidebarOpen = await bridge
         .getEntriesSidebar({})
         .then(({ enabled }) => enabled)

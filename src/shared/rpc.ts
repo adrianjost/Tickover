@@ -83,6 +83,7 @@ export type AppRequests = {
   setTheme: { params: { theme: Theme }; response: void };
   getEntriesSidebar: { params: {}; response: { enabled: boolean } };
   setEntriesSidebar: { params: { enabled: boolean }; response: void };
+  setSidebarButton: { params: { visible: boolean; open: boolean }; response: void };
   getWorkSchedules: { params: {}; response: { schedules: WorkSchedule[] } };
   setWorkSchedules: {
     params: { schedules: WorkSchedule[] };

@@ -1550,15 +1550,6 @@ button.icon-button {
   background: none;
 }
 
-#entries-toggle:hover svg {
-  animation: none;
-}
-
-#entries-toggle[aria-pressed="true"] {
-  background: var(--hover);
-  color: var(--text);
-}
-
 .dashboard-body {
   position: relative;
   display: flex;
