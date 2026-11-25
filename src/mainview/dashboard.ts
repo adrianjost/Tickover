@@ -1167,15 +1167,17 @@ function createBarChart(
   const leftStep = ([2, 4, 8] as const).find((s) => Math.ceil(rawMax / s) <= maxLeftTicks) ?? 8;
   const leftMax = Math.ceil(rawMax / leftStep) * leftStep;
 
-  // Compute a nice integer axis range for the right (cumulative) axis.
+  // The right (balance) axis spans the data plus a small margin, with ticks at nice steps
+  // inside it; rounding the range out to whole steps left up to a step of empty space.
   const rawCumMin = yDomain.cumulativeMin;
   const rawCumMax = yDomain.cumulativeMax;
   const rawCumRange = rawCumMax - rawCumMin || 1;
   const maxRightTicks = width < 640 ? 5 : height < 250 ? 5 : 8;
   const rightStep =
     ([1, 2, 5, 10, 20, 50, 100] as const).find((s) => rawCumRange / s <= maxRightTicks) ?? 100;
-  const cumulativeMin = Math.floor(rawCumMin / rightStep) * rightStep;
-  const cumulativeMax = Math.ceil(rawCumMax / rightStep) * rightStep;
+  const margin = rawCumRange * 0.04;
+  const cumulativeMin = rawCumMin < 0 ? rawCumMin - margin : 0;
+  const cumulativeMax = rawCumMax > 0 ? rawCumMax + margin : 0;
   const cumulativeRange = cumulativeMax - cumulativeMin || 1;
 
   // Left Y-axis integer labels — includes 0 and enough range for the reference line.
@@ -1329,7 +1331,8 @@ function createBarChart(
     plot.appendChild(line);
 
     // Right Y-axis integer labels — always includes 0.
-    for (let v = cumulativeMin; v <= cumulativeMax; v += rightStep) {
+    const firstTick = Math.ceil(cumulativeMin / rightStep) * rightStep;
+    for (let v = firstTick; v <= cumulativeMax; v += rightStep) {
       const y = padding.top + chartHeight - ((v - cumulativeMin) / cumulativeRange) * chartHeight;
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
       text.setAttribute("x", String(padding.left + chartWidth + 10));
